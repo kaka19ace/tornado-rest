@@ -17,6 +17,7 @@
 # -*- coding: utf-8 -*-
 
 import tornado.ioloop
+import tornado.concurrent
 import tornado.web
 import tornado.wsgi
 import xml.dom.minidom
@@ -27,21 +28,21 @@ import json
 from pyrestful import mediatypes, types
 
 class PyRestfulException(Exception):
-	""" Class for PyRestful exceptions """
-	def __init__(self,message):
-		self.message = message
-	def __str__(self):
-		return repr(self.message)
+    """ Class for PyRestful exceptions """
+    def __init__(self,message):
+        self.message = message
+    def __str__(self):
+        return repr(self.message)
 
 def config(func,method,**kwparams):
-	""" Decorator config function """
-	path     = None
-	produces = None
-	consumes = None
-	types    = None
+    """ Decorator config function """
+    path     = None
+    produces = None
+    consumes = None
+    types    = None
 
-	if len(kwparams):
-		path = kwparams['_path']
+    if len(kwparams):
+        path = kwparams['_path']
 		if '_produces' in kwparams:
 			produces = kwparams['_produces']
 		else:
@@ -155,6 +156,9 @@ class RestHandler(tornado.web.RequestHandler):
 					elif produces in [mediatypes.APPLICATION_XML,mediatypes.TEXT_XML] and isinstance(response,xml.dom.minidom.Document):
 						self.write(response.toxml())
 						self.finish()
+					elif isinstance(response, tornado.concurrent.Future): 
+					    "Do Nothing when using tornado.gen.coroutine"
+					    pass
 					else:
 						self.gen_http_error(500,"Internal Server Error : response is not %s document"%produces)
 				except Exception as detail:
@@ -242,7 +246,7 @@ class RestHandler(tornado.web.RequestHandler):
 class RestService(tornado.web.Application):
 	""" Class to create Rest services in tornado web server """
 	resource = None
-	def __init__(self, rest_handlers, resource=None, handlers=None, default_host="", transforms=None, wsgi=False, **settings):
+	def __init__(self, rest_handlers, resource=None, handlers=None, default_host="", transforms=None, **settings):
 		restservices = []
 		self.resource = resource
 		for r in rest_handlers:
@@ -250,7 +254,7 @@ class RestService(tornado.web.Application):
 			restservices += svs
 		if handlers != None:
 			restservices += handlers
-		tornado.web.Application.__init__(self, restservices, default_host, transforms, wsgi, **settings)
+		tornado.web.Application.__init__(self, restservices, default_host, transforms, **settings)
 
 	def _generateRestServices(self,rest):
 		svs = []
